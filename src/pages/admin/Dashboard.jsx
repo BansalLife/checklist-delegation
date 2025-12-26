@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react"
 import { BarChart3, CheckCircle2, Clock, ListTodo, Users, AlertTriangle, Filter, X, Search } from 'lucide-react'
 import AdminLayout from "../../components/layout/AdminLayout.jsx"
+import { CONFIG } from "../../config";
+
 import {
   BarChart,
   Bar,
@@ -394,7 +396,7 @@ export default function AdminDashboard() {
       }
 
       // FIXED: Use the correct Google Apps Script endpoint
-      const scriptUrl = 'https://script.google.com/macros/s/AKfycbyaBCq6ZKHhOZBXRp9qw3hqrXh_aIOPvIHh_G41KtzPovhjl-UjEgj75Ok6gwJhrPOX/exec';
+      const scriptUrl = CONFIG.APPS_SCRIPT_URL;
 
       // Prepare fetch calls
       const fetchPromises = [

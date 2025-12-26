@@ -14,14 +14,14 @@ import {
 
 } from "lucide-react";
 import AdminLayout from "../../components/layout/AdminLayout";
+import { CONFIG as GLOBAL_CONFIG } from "../../config";
 
 // Configuration object - Move all configurations here
 const CONFIG = {
   // Google Apps Script URL
-  APPS_SCRIPT_URL:
-    "https://script.google.com/macros/s/AKfycbyaBCq6ZKHhOZBXRp9qw3hqrXh_aIOPvIHh_G41KtzPovhjl-UjEgj75Ok6gwJhrPOX/exec",
+  APPS_SCRIPT_URL: GLOBAL_CONFIG.APPS_SCRIPT_URL,
   // Google Drive folder ID for file uploads
-  DRIVE_FOLDER_ID: "1CQfQIVeUfOHePuUqtf3SQ-Hd6vJBfrYd",
+  DRIVE_FOLDER_ID: GLOBAL_CONFIG.DRIVE_FOLDER_ID,
   // Sheet name to work with
   SHEET_NAME: "Checklist",
   // Page configuration
@@ -840,20 +840,7 @@ function AccountDataPage() {
       if (!response.ok) {
         throw new Error(`Failed to fetch data: ${response.status}`);
       }
-      const text = await response.text();
-      let data;
-      try {
-        data = JSON.parse(text);
-      } catch (parseError) {
-        const jsonStart = text.indexOf("{");
-        const jsonEnd = text.lastIndexOf("}");
-        if (jsonStart !== -1 && jsonEnd !== -1) {
-          const jsonString = text.substring(jsonStart, jsonEnd + 1);
-          data = JSON.parse(jsonString);
-        } else {
-          throw new Error("Invalid JSON response from server");
-        }
-      }
+      const data = await response.json();
 
       const currentUsername = sessionStorage.getItem("username");
       const currentUserRole = sessionStorage.getItem("role");

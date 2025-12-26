@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 import { Search, ChevronDown, Filter } from "lucide-react";
 import AdminLayout from "../components/layout/AdminLayout";
 import DelegationPage from "./delegation-data";
+import { CONFIG as GLOBAL_CONFIG } from "../config";
 
 export default function QuickTask() {
   const [tasks, setTasks] = useState([]);
@@ -178,22 +179,17 @@ export default function QuickTask() {
   const submitSelectedTasks = async () => {
     try {
       setSubmitting(true);
-
-      const userAppScriptUrl = "https://script.google.com/macros/s/AKfycbyaBCq6ZKHhOZBXRp9qw3hqrXh_aIOPvIHh_G41KtzPovhjl-UjEgj75Ok6gwJhrPOX/exec";
+      const userAppScriptUrl = GLOBAL_CONFIG.APPS_SCRIPT_URL;
       const userSheetId = CONFIG.SHEET_ID;
 
       if (!userAppScriptUrl || !userSheetId) {
         throw new Error('User configuration missing. Please log in again.');
       }
 
-      // Fetch last Task ID
-      const sheetUrl = `https://docs.google.com/spreadsheets/d/${userSheetId}/gviz/tq?tqx=out:json&sheet=${CONFIG.CHECKLIST_SHEET}`;
-      const sheetResponse = await fetch(sheetUrl);
-      const sheetText = await sheetResponse.text();
-      const jsonStart = sheetText.indexOf('{');
-      const jsonEnd = sheetText.lastIndexOf('}') + 1;
-      const jsonData = sheetText.substring(jsonStart, jsonEnd);
-      const sheetData = JSON.parse(jsonData);
+      // Fetch last Task ID through proxy
+      const response = await fetch(`${userAppScriptUrl}?sheet=${CONFIG.CHECKLIST_SHEET}&action=fetch`);
+      if (!response.ok) throw new Error(`Failed to fetch task history: ${response.status}`);
+      const sheetData = await response.json();
 
       let lastTaskId = 0;
       if (sheetData?.table?.rows) {
@@ -235,7 +231,7 @@ export default function QuickTask() {
       console.log("Final tasks to submit:", tasksToSubmit);
 
       const submitUrl = `${userAppScriptUrl}?sheetName=${CONFIG.CHECKLIST_SHEET}&action=insert&batchInsert=true`;
-      const response = await fetch(submitUrl, {
+      const submitResponse = await fetch(submitUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
@@ -246,8 +242,8 @@ export default function QuickTask() {
         })
       });
 
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-      const result = await response.json();
+      if (!submitResponse.ok) throw new Error(`HTTP error! status: ${submitResponse.status}`);
+      const result = await submitResponse.json();
 
       if (!result.success) throw new Error(result.error || 'Server returned error');
 
@@ -270,7 +266,7 @@ export default function QuickTask() {
 
 
   const CONFIG = {
-    SHEET_ID: "1pZx7O0Zfz52Gj-jon_UELVvueGcKPV2u0ONVq1IU3EU",
+    SHEET_ID: GLOBAL_CONFIG.SPREADSHEET_ID,
     WHATSAPP_SHEET: "master", // For login credentials and user roles
     CHECKLIST_SHEET: "Unique", // For unique checklist tasks
     DELEGATION_SHEET: "Delegation", // For delegation tasks
@@ -296,15 +292,13 @@ export default function QuickTask() {
         throw new Error("No user logged in. Please log in to access tasks.");
       }
 
-      // Fetch user role from Whatsapp sheet
-      const whatsappSheetUrl = `https://docs.google.com/spreadsheets/d/${CONFIG.SHEET_ID}/gviz/tq?tqx=out:json&sheet=${CONFIG.WHATSAPP_SHEET}`;
-      const response = await fetch(whatsappSheetUrl);
-      const text = await response.text();
-
-      const jsonStart = text.indexOf('{');
-      const jsonEnd = text.lastIndexOf('}') + 1;
-      const jsonData = text.substring(jsonStart, jsonEnd);
-      const data = JSON.parse(jsonData);
+      // UPDATED: Fetch from Apps Script to support restricted mode
+      const whatsappSheetUrl = `${GLOBAL_CONFIG.APPS_SCRIPT_URL}?sheet=${CONFIG.WHATSAPP_SHEET}&action=fetch`;
+      const whatsappResponse = await fetch(whatsappSheetUrl);
+      if (!whatsappResponse.ok) {
+        throw new Error(`Failed to fetch user data: ${whatsappResponse.status}`);
+      }
+      const data = await whatsappResponse.json();
 
       console.log("data:", data);
 
@@ -360,15 +354,10 @@ export default function QuickTask() {
     try {
       setLoading(true);
 
-      // Fetch from Checklist sheet (Unique sheet)
-      const checklistUrl = `https://docs.google.com/spreadsheets/d/${CONFIG.SHEET_ID}/gviz/tq?tqx=out:json&sheet=${CONFIG.CHECKLIST_SHEET}`;
+      // UPDATED: Fetch from Apps Script to support restricted mode
+      const checklistUrl = `${GLOBAL_CONFIG.APPS_SCRIPT_URL}?sheet=${CONFIG.CHECKLIST_SHEET}&action=fetch`;
       const response = await fetch(checklistUrl);
-      const text = await response.text();
-
-      const jsonStart = text.indexOf('{');
-      const jsonEnd = text.lastIndexOf('}') + 1;
-      const jsonData = text.substring(jsonStart, jsonEnd);
-      const data = JSON.parse(jsonData);
+      const data = await response.json();
 
       if (data?.table?.rows) {
         const rows = data.table.rows.slice(1); // Skip header
@@ -442,15 +431,10 @@ export default function QuickTask() {
     try {
       setDelegationLoading(true);
 
-      // Fetch from Delegation sheet
-      const delegationUrl = `https://docs.google.com/spreadsheets/d/${CONFIG.SHEET_ID}/gviz/tq?tqx=out:json&sheet=${CONFIG.DELEGATION_SHEET}`;
+      // UPDATED: Fetch from Apps Script to support restricted mode
+      const delegationUrl = `${GLOBAL_CONFIG.APPS_SCRIPT_URL}?sheet=${CONFIG.DELEGATION_SHEET}&action=fetch`;
       const response = await fetch(delegationUrl);
-      const text = await response.text();
-
-      const jsonStart = text.indexOf('{');
-      const jsonEnd = text.lastIndexOf('}') + 1;
-      const jsonData = text.substring(jsonStart, jsonEnd);
-      const data = JSON.parse(jsonData);
+      const data = await response.json();
 
       if (data?.table?.rows) {
         const rows = data.table.rows.slice(1); // Skip header
@@ -1011,9 +995,9 @@ export default function QuickTask() {
                                 </select>
                               ) : (
                                 <span className={`px-2 py-1 rounded-full text-xs ${task.Frequency === 'Daily' ? 'bg-blue-100 text-blue-800' :
-                                    task.Frequency === 'Weekly' ? 'bg-green-100 text-green-800' :
-                                      task.Frequency === 'Monthly' ? 'bg-purple-100 text-purple-800' :
-                                        'bg-gray-100 text-gray-800'
+                                  task.Frequency === 'Weekly' ? 'bg-green-100 text-green-800' :
+                                    task.Frequency === 'Monthly' ? 'bg-purple-100 text-purple-800' :
+                                      'bg-gray-100 text-gray-800'
                                   }`}>
                                   {task.Frequency || "—"}
                                 </span>
@@ -1225,9 +1209,9 @@ export default function QuickTask() {
                                 </select>
                               ) : (
                                 <span className={`px-2 py-1 rounded-full text-xs ${task.Frequency === 'Daily' ? 'bg-blue-100 text-blue-800' :
-                                    task.Frequency === 'Weekly' ? 'bg-green-100 text-green-800' :
-                                      task.Frequency === 'Monthly' ? 'bg-purple-100 text-purple-800' :
-                                        'bg-gray-100 text-gray-800'
+                                  task.Frequency === 'Weekly' ? 'bg-green-100 text-green-800' :
+                                    task.Frequency === 'Monthly' ? 'bg-purple-100 text-purple-800' :
+                                      'bg-gray-100 text-gray-800'
                                   }`}>
                                   {task.Frequency || "—"}
                                 </span>

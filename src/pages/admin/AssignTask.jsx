@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { BellRing, FileCheck, Calendar, Clock } from "lucide-react";
 import AdminLayout from "../../components/layout/AdminLayout";
+import { CONFIG as GLOBAL_CONFIG } from "../../config";
 
 // Calendar Component (defined outside)
 const CalendarComponent = ({ date, onChange, onClose }) => {
@@ -193,23 +194,12 @@ export default function AssignTask() {
   // Function to fetch options from master sheet
   const fetchMasterSheetOptions = async () => {
     try {
-      const masterSheetId = "1pZx7O0Zfz52Gj-jon_UELVvueGcKPV2u0ONVq1IU3EU";
-      const masterSheetName = "master";
-
-      const url = `https://docs.google.com/spreadsheets/d/${masterSheetId}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(
-        masterSheetName
-      )}`;
-
-      const response = await fetch(url);
+      const response = await fetch(`${GLOBAL_CONFIG.APPS_SCRIPT_URL}?sheet=master&action=fetch`);
       if (!response.ok) {
         throw new Error(`Failed to fetch master data: ${response.status}`);
       }
 
-      const text = await response.text();
-      const jsonStart = text.indexOf("{");
-      const jsonEnd = text.lastIndexOf("}");
-      const jsonString = text.substring(jsonStart, jsonEnd + 1);
-      const data = JSON.parse(jsonString);
+      const data = await response.json();
 
       if (!data.table || !data.table.rows) {
         // console.log("No master data found");
@@ -251,11 +241,6 @@ export default function AssignTask() {
       setGivenByOptions([...new Set(givenBy)].sort());
       setDoerOptions([...new Set(doers)].sort());
 
-      // console.log("Master sheet options loaded successfully", {
-      //   departments: [...new Set(departments)],
-      //   givenBy: [...new Set(givenBy)],
-      //   doers: [...new Set(doers)],
-      // });
     } catch (error) {
       console.error("Error fetching master sheet options:", error);
       // Set default options if fetch fails
@@ -316,8 +301,6 @@ export default function AssignTask() {
   // Add a function to get the last task ID from the specified sheet
   const getLastTaskId = async (sheetName) => {
     try {
-      const sheetId = "1pZx7O0Zfz52Gj-jon_UELVvueGcKPV2u0ONVq1IU3EU";
-
       // Try with the provided sheet name first, then try alternate case
       const sheetNamesToTry = [
         sheetName,
@@ -331,18 +314,10 @@ export default function AssignTask() {
 
       for (const trySheetName of sheetNamesToTry) {
         try {
-          const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(
-            trySheetName
-          )}`;
-
-          const response = await fetch(url);
+          const response = await fetch(`${GLOBAL_CONFIG.APPS_SCRIPT_URL}?sheet=${encodeURIComponent(trySheetName)}&action=fetch`);
           if (!response.ok) continue;
 
-          const text = await response.text();
-          const jsonStart = text.indexOf("{");
-          const jsonEnd = text.lastIndexOf("}");
-          const jsonString = text.substring(jsonStart, jsonEnd + 1);
-          data = JSON.parse(jsonString);
+          data = await response.json();
 
           if (data.table && data.table.rows) {
             successfulSheetName = trySheetName;
@@ -394,23 +369,12 @@ export default function AssignTask() {
   // Function to fetch working days from the Working Day Calendar sheet
   const fetchWorkingDays = async () => {
     try {
-      const sheetId = "1pZx7O0Zfz52Gj-jon_UELVvueGcKPV2u0ONVq1IU3EU";
-      const sheetName = "Working Day Calendar";
-
-      const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(
-        sheetName
-      )}`;
-
-      const response = await fetch(url);
+      const response = await fetch(`${GLOBAL_CONFIG.APPS_SCRIPT_URL}?sheet=${encodeURIComponent("Working Day Calendar")}&action=fetch`);
       if (!response.ok) {
         throw new Error(`Failed to fetch working days: ${response.status}`);
       }
 
-      const text = await response.text();
-      const jsonStart = text.indexOf("{");
-      const jsonEnd = text.lastIndexOf("}");
-      const jsonString = text.substring(jsonStart, jsonEnd + 1);
-      const data = JSON.parse(jsonString);
+      const data = await response.json();
 
       if (!data.table || !data.table.rows) {
         // console.log("No working day data found");
@@ -480,184 +444,65 @@ export default function AssignTask() {
     return targetDateStr;
   };
 
-  // UPDATED: generateTasks function with proper frequency logic
+  const isFirstTaskForUser = async (doerName) => {
+    try {
+      const response = await fetch(`${GLOBAL_CONFIG.APPS_SCRIPT_URL}?sheet=Checklist&action=fetch`);
+      if (!response.ok) {
+        console.log("Checklist sheet not found - treating as first task");
+        return true;
+      }
+
+      const data = await response.json();
+
+      if (!data.table || !data.table.rows || data.table.rows.length <= 1) {
+        console.log("Checklist sheet is empty - treating as first task");
+        return true;
+      }
+
+      // Check if doer name exists in column E (index 4) - "name" column
+      for (let i = 1; i < data.table.rows.length; i++) {
+        const row = data.table.rows[i];
+        if (row.c && row.c[4] && row.c[4].v) {
+          const existingDoer = row.c[4].v.toString().trim();
+          if (existingDoer.toLowerCase() === doerName.toLowerCase().trim()) {
+            console.log(`User "${doerName}" found in Checklist - NOT first task`);
+            return false;
+          }
+        }
+      }
+
+      console.log(`User "${doerName}" NOT found in Checklist - IS first task`);
+      return true;
+    } catch (error) {
+      console.error("Error checking first task:", error);
+      return true;
+    }
+  };
+
+  // Function to generate tasks preview
   const generateTasks = async () => {
-    if (!date || !time || !formData.doer || !formData.description || !formData.frequency) {
-      alert("Please fill in all required fields including date and time.");
+    if (!formData.department || !formData.description || !date || !formData.doer) {
+      alert("Please fill in all required fields (Department, Doer, Description, and Date)");
       return;
     }
 
-    // For one-time frequency, generate a single task with specific date
-    if (formData.frequency === "one-time") {
-      // Fetch working days and find the appropriate date (your existing logic)
-      const workingDays = await fetchWorkingDays();
-      if (workingDays.length === 0) {
-        alert("Could not retrieve working days. Please make sure the Working Day Calendar sheet is properly set up.");
-        return;
-      }
+    // Combine date and time
+    const dateTimeStr = formatDateTimeForStorage(date, time);
 
-      const sortedWorkingDays = [...workingDays].sort((a, b) => {
-        const [dayA, monthA, yearA] = a.split('/').map(Number);
-        const [dayB, monthB, yearB] = b.split('/').map(Number);
-        return new Date(yearA, monthA - 1, dayA) - new Date(yearB, monthB - 1, dayB);
-      });
+    // Prepare task object for preview
+    const task = {
+      description: formData.description,
+      dueDate: dateTimeStr,
+      department: formData.department,
+      doer: formData.doer,
+      frequency: formData.frequency,
+      enableReminders: formData.enableReminders,
+      requireAttachment: formData.requireAttachment
+    };
 
-      const selectedDate = new Date(date);
-      const futureDates = sortedWorkingDays.filter(dateStr => {
-        const [dateDay, month, year] = dateStr.split('/').map(Number);
-        const dateObj = new Date(year, month - 1, dateDay);
-        return dateObj >= selectedDate;
-      });
-
-      if (futureDates.length === 0) {
-        alert("No working days found on or after your selected date. Please choose a different End Date or update the Working Day Calendar.");
-        return;
-      }
-
-      const startDateStr = formatDateToDDMMYYYY(selectedDate);
-      let startIndex = futureDates.findIndex(d => d === startDateStr);
-
-      if (startIndex === -1) {
-        startIndex = 0;
-        alert(`The selected date (${startDateStr}) is not in the Working Day Calendar. The next available working day will be used instead: ${futureDates[0]}`);
-      }
-
-      const taskDateStr = futureDates[startIndex];
-      const taskDateTimeStr = formatDateTimeForStorage(
-        new Date(taskDateStr.split('/').reverse().join('-')),
-        time
-      );
-
-      const tasks = [{
-        description: formData.description,
-        department: formData.department,
-        givenBy: formData.givenBy,
-        doer: formData.doer,
-        dueDate: taskDateTimeStr,
-        status: "pending",
-        frequency: formData.frequency,
-        enableReminders: formData.enableReminders,
-        requireAttachment: formData.requireAttachment,
-      }];
-
-      setGeneratedTasks(tasks);
-    } else {
-      // For recurring frequencies, generate only ONE task with the End Date
-      // The recurrence logic will be handled by your backend/system
-      const taskDateTimeStr = formatDateTimeForStorage(date, time);
-
-      const tasks = [{
-        description: formData.description,
-        department: formData.department,
-        givenBy: formData.givenBy,
-        doer: formData.doer,
-        dueDate: taskDateTimeStr, // This becomes the End Date for recurrence
-        status: "pending",
-        frequency: formData.frequency,
-        enableReminders: formData.enableReminders,
-        requireAttachment: formData.requireAttachment,
-      }];
-
-      setGeneratedTasks(tasks);
-    }
-
+    // Set generated tasks (currently just one as a preview)
+    setGeneratedTasks([task]);
     setAccordionOpen(true);
-  };
-
-  // Helper function to find the closest working day to a target date
-  const findClosestWorkingDayIndex = (workingDays, targetDateStr) => {
-    // Parse the target date (DD/MM/YYYY format)
-    const [targetDay, targetMonth, targetYear] = targetDateStr.split('/').map(Number);
-    const targetDate = new Date(targetYear, targetMonth - 1, targetDay);
-
-    // Find the closest working day (preferably after the target date)
-    let closestIndex = -1;
-    let minDifference = Infinity;
-
-    for (let i = 0; i < workingDays.length; i++) {
-      const [workingDay, workingMonth, workingYear] = workingDays[i].split('/').map(Number);
-      const currentDate = new Date(workingYear, workingMonth - 1, workingDay);
-
-      // Calculate difference in days
-      const difference = Math.abs((currentDate - targetDate) / (1000 * 60 * 60 * 24));
-
-      if (currentDate >= targetDate && difference < minDifference) {
-        minDifference = difference;
-        closestIndex = i;
-      }
-    }
-
-    // If no working day found after the target date, find the closest one before
-    if (closestIndex === -1) {
-      for (let i = workingDays.length - 1; i >= 0; i--) {
-        const [workingDay2, workingMonth2, workingYear2] = workingDays[i].split('/').map(Number);
-        const currentDate2 = new Date(workingYear2, workingMonth2 - 1, workingDay2);
-
-        if (currentDate2 < targetDate) {
-          closestIndex = i;
-          break;
-        }
-      }
-    }
-
-    return closestIndex !== -1 ? closestIndex : workingDays.length - 1;
-  };
-
-  // Helper function to find the date for the end of a specific week in a month
-  const findEndOfWeekDate = (date, weekNumber, workingDays) => {
-    const year = date.getFullYear();
-    const month = date.getMonth();
-
-    // Get all working days in the target month (DD/MM/YYYY format)
-    const daysInMonth = workingDays.filter(dateStr => {
-      const [, m, y] = dateStr.split('/').map(Number);
-      return y === year && m === month + 1;
-    });
-
-    // Sort them chronologically
-    daysInMonth.sort((a, b) => {
-      const [dayA] = a.split('/').map(Number);
-      const [dayB] = b.split('/').map(Number);
-      return dayA - dayB;
-    });
-
-    // Group by weeks (assuming Monday is the first day of the week)
-    const weekGroups = [];
-    let currentWeek = [];
-    let lastWeekDay = -1;
-
-    for (const dateStr of daysInMonth) {
-      const [workingDay2, m, y] = dateStr.split('/').map(Number);
-      const dateObj = new Date(y, m - 1, workingDay2);
-      const weekDay = dateObj.getDay(); // 0 for Sunday, 1 for Monday, etc.
-
-      if (weekDay <= lastWeekDay || currentWeek.length === 0) {
-        if (currentWeek.length > 0) {
-          weekGroups.push(currentWeek);
-        }
-        currentWeek = [dateStr];
-      } else {
-        currentWeek.push(dateStr);
-      }
-
-      lastWeekDay = weekDay;
-    }
-
-    if (currentWeek.length > 0) {
-      weekGroups.push(currentWeek);
-    }
-
-    // Return the last day of the requested week
-    if (weekNumber === -1) {
-      // Last week of the month
-      return weekGroups[weekGroups.length - 1]?.[weekGroups[weekGroups.length - 1].length - 1] || daysInMonth[daysInMonth.length - 1];
-    } else if (weekNumber > 0 && weekNumber <= weekGroups.length) {
-      // Specific week
-      return weekGroups[weekNumber - 1]?.[weekGroups[weekNumber - 1].length - 1] || daysInMonth[daysInMonth.length - 1];
-    } else {
-      // Default to the last day of the month if the requested week doesn't exist
-      return daysInMonth[daysInMonth.length - 1];
-    }
   };
 
   // UPDATED: handleSubmit function with first-time user check logic
@@ -678,53 +523,6 @@ export default function AssignTask() {
         setIsSubmitting(false);
         return;
       }
-
-      // Helper function to check if this is the first task for the user
-      const isFirstTaskForUser = async (doerName) => {
-        try {
-          const sheetId = "1pZx7O0Zfz52Gj-jon_UELVvueGcKPV2u0ONVq1IU3EU";
-          const sheetName = "Checklist";
-
-          const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(
-            sheetName
-          )}`;
-
-          const response = await fetch(url);
-          if (!response.ok) {
-            console.log("Checklist sheet not found - treating as first task");
-            return true;
-          }
-
-          const text = await response.text();
-          const jsonStart = text.indexOf("{");
-          const jsonEnd = text.lastIndexOf("}");
-          const jsonString = text.substring(jsonStart, jsonEnd + 1);
-          const data = JSON.parse(jsonString);
-
-          if (!data.table || !data.table.rows || data.table.rows.length <= 1) {
-            console.log("Checklist sheet is empty - treating as first task");
-            return true;
-          }
-
-          // Check if doer name exists in column E (index 4) - "name" column
-          for (let i = 1; i < data.table.rows.length; i++) {
-            const row = data.table.rows[i];
-            if (row.c && row.c[4] && row.c[4].v) {
-              const existingDoer = row.c[4].v.toString().trim();
-              if (existingDoer === doerName.trim()) {
-                console.log(`User "${doerName}" found in Checklist - NOT first task`);
-                return false;
-              }
-            }
-          }
-
-          console.log(`User "${doerName}" NOT found in Checklist - IS first task`);
-          return true;
-        } catch (error) {
-          console.error("Error checking first task:", error);
-          return true;
-        }
-      };
 
       // Determine the sheet(s) based on frequency and first-time user check
       let submitToSheets = [];
@@ -789,7 +587,7 @@ export default function AssignTask() {
         formPayload.append("rowData", JSON.stringify(tasksData));
 
         await fetch(
-          "https://script.google.com/macros/s/AKfycbyaBCq6ZKHhOZBXRp9qw3hqrXh_aIOPvIHh_G41KtzPovhjl-UjEgj75Ok6gwJhrPOX/exec",
+          GLOBAL_CONFIG.APPS_SCRIPT_URL,
           {
             method: "POST",
             body: formPayload,
@@ -822,6 +620,7 @@ export default function AssignTask() {
       setIsSubmitting(false);
     }
   };
+
   // Helper function to format date for display in preview
   const formatDateForDisplay = (dateTimeStr) => {
     // dateTimeStr is in format "DD/MM/YYYY HH:MM:SS"

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { BarChart3, CheckCircle2, Clock, ListTodo, Users, AlertTriangle, Filter } from "lucide-react"
 import AdminLayout from "../../components/layout/AdminLayout.jsx"
+import { CONFIG as GLOBAL_CONFIG } from "../../config";
 import {
   BarChart,
   Bar,
@@ -33,9 +34,8 @@ export default function AdminDashboard() {
   // Cache for improved performance
   const [dataCache, setDataCache] = useState(new Map())
 
-  // Apps Script URL - UPDATE THIS WITH YOUR DEPLOYED APPS SCRIPT URL
-  const APPS_SCRIPT_URL =
-    "https://script.google.com/macros/s/AKfycbyaBCq6ZKHhOZBXRp9qw3hqrXh_aIOPvIHh_G41KtzPovhjl-UjEgj75Ok6gwJhrPOX/exec"
+  // Apps Script URL
+  const APPS_SCRIPT_URL = GLOBAL_CONFIG.APPS_SCRIPT_URL
 
   // State for department data
   const [departmentData, setDepartmentData] = useState({
@@ -297,42 +297,10 @@ export default function AdminDashboard() {
         return;
       }
 
-      // Fallback to gviz only if Apps Script completely fails
-      const response = await fetch(
-        `https://script.google.com/macros/s/AKfycbyaBCq6ZKHhOZBXRp9qw3hqrXh_aIOPvIHh_G41KtzPovhjl-UjEgj75Ok6gwJhrPOX/exec/gviz/tq?tqx=out:json&sheet=MASTER`
-      );
-
-      if (!response.ok) throw new Error(`Failed to fetch: ${response.status}`);
-
-      const text = await response.text();
-      const jsonStart = text.indexOf("{");
-      const jsonEnd = text.lastIndexOf("}");
-      const jsonString = text.substring(jsonStart, jsonEnd + 1);
-      const fallbackData = JSON.parse(jsonString);
-
-      const columnAValues = fallbackData.table.rows
-        .slice(1)
-        .map(row => row?.c?.[0]?.v)
-        .filter(value => value !== null && value !== "");
-
-      // Create a Set to get unique values, then convert back to array
-      const uniqueValues = [...new Set(columnAValues)];
-
-      const options = ["Select Department", ...uniqueValues];
-      setMasterSheetOptions(options);
-
-      if (!selectedMasterOption) {
-        setSelectedMasterOption(options[0]);
-      }
-
-      const activeStaffCount = fallbackData.table.rows
-        .slice(1)
-        .filter(row => row?.c?.[2]?.v !== null && row?.c?.[2]?.v !== "")
-        .length;
-
       setDepartmentData(prev => ({ ...prev, activeStaff: activeStaffCount }));
 
     } catch (error) {
+      console.error("Error fetching master sheet options:", error);
       setMasterSheetOptions(["Error loading master data"]);
     } finally {
       setIsFetchingMaster(false);

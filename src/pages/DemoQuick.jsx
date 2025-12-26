@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback } from "react";
 import { format } from 'date-fns';
 import { Search, ChevronDown, Filter, CloudCog } from "lucide-react";
 import AdminLayout from "../components/layout/AdminLayout";
+import { CONFIG as GLOBAL_CONFIG } from "../config";
 import DelegationPage from "./delegation-data";
 
 export default function QuickTask() {
@@ -31,7 +32,7 @@ export default function QuickTask() {
     console.log("departments", departments);
 
     const CONFIG = {
-        SHEET_ID: "1pZx7O0Zfz52Gj-jon_UELVvueGcKPV2u0ONVq1IU3EU",
+        APPS_SCRIPT_URL: GLOBAL_CONFIG.APPS_SCRIPT_URL,
         WHATSAPP_SHEET: "Whatsapp", // For login credentials and user roles
         CHECKLIST_SHEET: "Unique task", // For checklist tasks
         DELEGATION_SHEET: "Delegation", // For delegation tasks
@@ -46,16 +47,9 @@ export default function QuickTask() {
         try {
             setDepartmentsLoading(true);
             console.log("Fetching departments..."); // Debug log
-            const masterSheetUrl = `https://docs.google.com/spreadsheets/d/${CONFIG.SHEET_ID}/gviz/tq?tqx=out:json&sheet=${CONFIG.MASTER_SHEET}`;
-            const response = await fetch(masterSheetUrl);
-            const text = await response.text();
-            console.log("Raw response:", text); // Debug log
-
-            const jsonStart = text.indexOf('{');
-            const jsonEnd = text.lastIndexOf('}') + 1;
-            const jsonData = text.substring(jsonStart, jsonEnd);
-            console.log("Parsed JSON:", jsonData); // Debug log
-            const data = JSON.parse(jsonData);
+            const response = await fetch(`${CONFIG.APPS_SCRIPT_URL}?sheet=${CONFIG.MASTER_SHEET}&action=fetch`);
+            if (!response.ok) throw new Error(`Failed to fetch: ${response.status}`);
+            const data = await response.json();
 
             if (data?.table?.rows) {
                 console.log("Found rows:", data.table.rows); // Debug log
@@ -81,7 +75,7 @@ export default function QuickTask() {
             setDepartmentsLoading(false);
         }
 
-    }, [CONFIG.SHEET_ID, CONFIG.MASTER_SHEET]);
+    }, [CONFIG.APPS_SCRIPT_URL, CONFIG.MASTER_SHEET]);
 
 
     // Auto-detect current user from login session and get role from Whatsapp sheet
@@ -101,14 +95,9 @@ export default function QuickTask() {
             }
 
             // Fetch user role from Whatsapp sheet
-            const whatsappSheetUrl = `https://docs.google.com/spreadsheets/d/${CONFIG.SHEET_ID}/gviz/tq?tqx=out:json&sheet=${CONFIG.WHATSAPP_SHEET}`;
-            const response = await fetch(whatsappSheetUrl);
-            const text = await response.text();
-
-            const jsonStart = text.indexOf('{');
-            const jsonEnd = text.lastIndexOf('}') + 1;
-            const jsonData = text.substring(jsonStart, jsonEnd);
-            const data = JSON.parse(jsonData);
+            const response = await fetch(`${CONFIG.APPS_SCRIPT_URL}?sheet=${CONFIG.WHATSAPP_SHEET}&action=fetch`);
+            if (!response.ok) throw new Error(`Failed to fetch: ${response.status}`);
+            const data = await response.json();
 
             if (data?.table?.rows) {
                 let foundUser = null;
@@ -148,7 +137,7 @@ export default function QuickTask() {
         } finally {
             setUserLoading(false);
         }
-    }, []);
+    }, [CONFIG.APPS_SCRIPT_URL, CONFIG.WHATSAPP_SHEET]);
 
     const fetchChecklistData = useCallback(async () => {
         if (!currentUser || userLoading) return;
@@ -160,14 +149,9 @@ export default function QuickTask() {
             const sheetName = selectedDepartment || CONFIG.CHECKLIST_SHEET;
 
             // Fetch from Checklist sheet (Unique task or department sheet)
-            const checklistUrl = `https://docs.google.com/spreadsheets/d/${CONFIG.SHEET_ID}/gviz/tq?tqx=out:json&sheet=${sheetName}`;
-            const response = await fetch(checklistUrl);
-            const text = await response.text();
-
-            const jsonStart = text.indexOf('{');
-            const jsonEnd = text.lastIndexOf('}') + 1;
-            const jsonData = text.substring(jsonStart, jsonEnd);
-            const data = JSON.parse(jsonData);
+            const response = await fetch(`${CONFIG.APPS_SCRIPT_URL}?sheet=${sheetName}&action=fetch`);
+            if (!response.ok) throw new Error(`Failed to fetch: ${response.status}`);
+            const data = await response.json();
 
             if (data?.table?.rows) {
                 const rows = data.table.rows.slice(1); // Skip header
@@ -223,7 +207,7 @@ export default function QuickTask() {
         } finally {
             setLoading(false);
         }
-    }, [currentUser, userRole, userLoading, selectedDepartment]);
+    }, [currentUser, userRole, userLoading, selectedDepartment, CONFIG.APPS_SCRIPT_URL, CONFIG.CHECKLIST_SHEET]);
 
     const fetchDelegationData = useCallback(async () => {
         if (!currentUser || userLoading) return;
@@ -232,14 +216,9 @@ export default function QuickTask() {
             setDelegationLoading(true);
 
             // Fetch from Delegation sheet
-            const delegationUrl = `https://docs.google.com/spreadsheets/d/${CONFIG.SHEET_ID}/gviz/tq?tqx=out:json&sheet=${CONFIG.DELEGATION_SHEET}`;
-            const response = await fetch(delegationUrl);
-            const text = await response.text();
-
-            const jsonStart = text.indexOf('{');
-            const jsonEnd = text.lastIndexOf('}') + 1;
-            const jsonData = text.substring(jsonStart, jsonEnd);
-            const data = JSON.parse(jsonData);
+            const response = await fetch(`${CONFIG.APPS_SCRIPT_URL}?sheet=${CONFIG.DELEGATION_SHEET}&action=fetch`);
+            if (!response.ok) throw new Error(`Failed to fetch: ${response.status}`);
+            const data = await response.json();
 
             if (data?.table?.rows) {
                 const rows = data.table.rows.slice(1); // Skip header

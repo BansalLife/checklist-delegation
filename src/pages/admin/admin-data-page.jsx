@@ -3,12 +3,13 @@
 import { useState, useEffect } from "react"
 import { CheckCircle2, Upload, X, Search, History, ArrowLeft, Calendar, Check } from "lucide-react"
 import AdminLayout from "../../components/layout/AdminLayout"
+import { CONFIG as GLOBAL_CONFIG } from "../../config";
 import ReactDOM from 'react-dom';
 
 // Google Apps Script URL
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz47q4SiLvJJom8dRGteqjhufs0Iui4rYTLMeTYqOgY_MFrS0C0o0XkRCPzAOdEeg4jqg/exec"
+const APPS_SCRIPT_URL = GLOBAL_CONFIG.APPS_SCRIPT_URL;
 // Google Drive folder ID
-const DRIVE_FOLDER_ID = "1xdahLZtnhCGnHve4HdPolTm5y4DLqdyl"
+const DRIVE_FOLDER_ID = GLOBAL_CONFIG.DRIVE_FOLDER_ID;
 
 function AccountDataPage() {
   const [accountData, setAccountData] = useState([])
@@ -357,17 +358,14 @@ function AccountDataPage() {
       const pendingAccounts = [];
       const historyRows = [];
 
-      const response = await fetch(`https://script.google.com/macros/s/AKfycbyaBCq6ZKHhOZBXRp9qw3hqrXh_aIOPvIHh_G41KtzPovhjl-UjEgj75Ok6gwJhrPOX/exec/gviz/tq?tqx=out:json&sheet=STORE`);
+      // UPDATED: Fetch from Apps Script to support restricted mode
+      const response = await fetch(`${APPS_SCRIPT_URL}?sheet=STORE&action=fetch`);
 
       if (!response.ok) {
         throw new Error(`Failed to fetch data: ${response.status}`);
       }
 
-      const text = await response.text();
-      const jsonStart = text.indexOf('{');
-      const jsonEnd = text.lastIndexOf('}');
-      const jsonString = text.substring(jsonStart, jsonEnd + 1);
-      const data = JSON.parse(jsonString);
+      const data = await response.json();
 
       const username = sessionStorage.getItem('username')
       const userRole = sessionStorage.getItem('role')

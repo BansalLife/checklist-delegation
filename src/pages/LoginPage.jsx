@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { CONFIG } from "../config";
+
 
 const LoginPage = () => {
     const navigate = useNavigate();
@@ -39,24 +41,21 @@ const LoginPage = () => {
     // Fetch master data on component mount
     useEffect(() => {
         const fetchMasterData = async () => {
-            const SCRIPT_URL =
-                "https://script.google.com/macros/s/AKfycbyaBCq6ZKHhOZBXRp9qw3hqrXh_aIOPvIHh_G41KtzPovhjl-UjEgj75Ok6gwJhrPOX/exec";
+            const SCRIPT_URL = CONFIG.APPS_SCRIPT_URL;
 
             try {
                 setIsDataLoading(true);
 
-                // Get the spreadsheet ID from your Apps Script
-                const SPREADSHEET_ID = "1pZx7O0Zfz52Gj-jon_UELVvueGcKPV2u0ONVq1IU3EU";
-
-                // Construct the URL to read the sheet data directly
-                const sheetUrl = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=master`;
+                // UPDATED: Fetch from Apps Script instead of direct gviz endpoint to work in restricted mode
+                const sheetUrl = `${SCRIPT_URL}?sheet=master&action=fetch`;
 
                 const response = await fetch(sheetUrl);
-                const text = await response.text();
 
-                // Parse the Google Sheets JSON response
-                const jsonString = text.substring(47).slice(0, -2); // Remove Google's wrapper
-                const data = JSON.parse(jsonString);
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch master data: ${response.status}`);
+                }
+
+                const data = await response.json();
 
                 // Create userCredentials and userRoles objects from the sheet data
                 const userCredentials = {};
@@ -65,7 +64,7 @@ const LoginPage = () => {
 
                 // Process the data rows (skip header row if it exists)
                 if (data.table && data.table.rows) {
-                    // Start from index 1 to skip header row (adjust if needed)
+                    // Start from index 1 to skip header row
                     for (let i = 1; i < data.table.rows.length; i++) {
                         const row = data.table.rows[i];
 

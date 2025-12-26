@@ -12,15 +12,16 @@ import {
   Camera,
 } from "lucide-react";
 import AdminLayout from "../components/layout/AdminLayout";
+import { CONFIG as GLOBAL_CONFIG } from "../config";
+
 
 // Configuration object - Move all configurations here
 const CONFIG = {
   // Google Apps Script URL
-  APPS_SCRIPT_URL:
-    "https://script.google.com/macros/s/AKfycbyaBCq6ZKHhOZBXRp9qw3hqrXh_aIOPvIHh_G41KtzPovhjl-UjEgj75Ok6gwJhrPOX/exec",
+  APPS_SCRIPT_URL: GLOBAL_CONFIG.APPS_SCRIPT_URL,
 
   // Google Drive folder ID for file uploads
-  DRIVE_FOLDER_ID: "1CQfQIVeUfOHePuUqtf3SQ-Hd6vJBfrYd",
+  DRIVE_FOLDER_ID: GLOBAL_CONFIG.DRIVE_FOLDER_ID,
 
   // Sheet names
   SOURCE_SHEET_NAME: "DELEGATION",
