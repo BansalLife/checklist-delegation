@@ -19,7 +19,7 @@ const CalendarComponent = ({ date, onChange, onClose }) => {
     const selectedDate = new Date(
       currentMonth.getFullYear(),
       currentMonth.getMonth(),
-      day
+      day,
     );
     onChange(selectedDate);
     onClose();
@@ -29,11 +29,11 @@ const CalendarComponent = ({ date, onChange, onClose }) => {
     const days = [];
     const daysInMonth = getDaysInMonth(
       currentMonth.getFullYear(),
-      currentMonth.getMonth()
+      currentMonth.getMonth(),
     );
     const firstDayOfMonth = getFirstDayOfMonth(
       currentMonth.getFullYear(),
-      currentMonth.getMonth()
+      currentMonth.getMonth(),
     );
 
     // Add empty cells for days before the first day of the month
@@ -54,13 +54,14 @@ const CalendarComponent = ({ date, onChange, onClose }) => {
           key={day}
           type="button"
           onClick={() => handleDateClick(day)}
-          className={`h-8 w-8 rounded-full flex items-center justify-center text-sm ${isSelected
-            ? "bg-purple-600 text-white"
-            : "hover:bg-purple-100 text-gray-700"
-            }`}
+          className={`h-8 w-8 rounded-full flex items-center justify-center text-sm ${
+            isSelected
+              ? "bg-purple-600 text-white"
+              : "hover:bg-purple-100 text-gray-700"
+          }`}
         >
           {day}
-        </button>
+        </button>,
       );
     }
 
@@ -69,13 +70,13 @@ const CalendarComponent = ({ date, onChange, onClose }) => {
 
   const prevMonth = () => {
     setCurrentMonth(
-      new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1)
+      new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1),
     );
   };
 
   const nextMonth = () => {
     setCurrentMonth(
-      new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1)
+      new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1),
     );
   };
 
@@ -194,7 +195,9 @@ export default function AssignTask() {
   // Function to fetch options from master sheet
   const fetchMasterSheetOptions = async () => {
     try {
-      const response = await fetch(`${GLOBAL_CONFIG.APPS_SCRIPT_URL}?sheet=master&action=fetch`);
+      const response = await fetch(
+        `${GLOBAL_CONFIG.APPS_SCRIPT_URL}?sheet=master&action=fetch`,
+      );
       if (!response.ok) {
         throw new Error(`Failed to fetch master data: ${response.status}`);
       }
@@ -240,7 +243,6 @@ export default function AssignTask() {
       setDepartmentOptions([...new Set(departments)].sort());
       setGivenByOptions([...new Set(givenBy)].sort());
       setDoerOptions([...new Set(doers)].sort());
-
     } catch (error) {
       console.error("Error fetching master sheet options:", error);
       // Set default options if fetch fails
@@ -306,7 +308,7 @@ export default function AssignTask() {
         sheetName,
         sheetName.toUpperCase(),
         sheetName.toLowerCase(),
-        sheetName.charAt(0).toUpperCase() + sheetName.slice(1).toLowerCase()
+        sheetName.charAt(0).toUpperCase() + sheetName.slice(1).toLowerCase(),
       ];
 
       let data = null;
@@ -314,7 +316,9 @@ export default function AssignTask() {
 
       for (const trySheetName of sheetNamesToTry) {
         try {
-          const response = await fetch(`${GLOBAL_CONFIG.APPS_SCRIPT_URL}?sheet=${encodeURIComponent(trySheetName)}&action=fetch`);
+          const response = await fetch(
+            `${GLOBAL_CONFIG.APPS_SCRIPT_URL}?sheet=${encodeURIComponent(trySheetName)}&action=fetch`,
+          );
           if (!response.ok) continue;
 
           data = await response.json();
@@ -328,12 +332,19 @@ export default function AssignTask() {
         }
       }
 
-      if (!data || !data.table || !data.table.rows || data.table.rows.length <= 1) {
+      if (
+        !data ||
+        !data.table ||
+        !data.table.rows ||
+        data.table.rows.length <= 1
+      ) {
         console.log(`No existing tasks found in sheet, starting from ID 1`);
         return 0; // Start from 1 if no tasks exist (only header row)
       }
 
-      console.log(`Successfully fetched data from sheet: ${successfulSheetName}`);
+      console.log(
+        `Successfully fetched data from sheet: ${successfulSheetName}`,
+      );
 
       // Get the last task ID from column B (index 1)
       let lastTaskId = 0;
@@ -369,7 +380,9 @@ export default function AssignTask() {
   // Function to fetch working days from the Working Day Calendar sheet
   const fetchWorkingDays = async () => {
     try {
-      const response = await fetch(`${GLOBAL_CONFIG.APPS_SCRIPT_URL}?sheet=${encodeURIComponent("Working Day Calendar")}&action=fetch`);
+      const response = await fetch(
+        `${GLOBAL_CONFIG.APPS_SCRIPT_URL}?sheet=${encodeURIComponent("Working Day Calendar")}&action=fetch`,
+      );
       if (!response.ok) {
         throw new Error(`Failed to fetch working days: ${response.status}`);
       }
@@ -432,7 +445,8 @@ export default function AssignTask() {
 
     // Otherwise, find the next working day
     let checkDate = new Date(targetDate);
-    for (let i = 1; i <= 30; i++) { // Check up to 30 days ahead
+    for (let i = 1; i <= 30; i++) {
+      // Check up to 30 days ahead
       checkDate = addDays(targetDate, i);
       const checkDateStr = formatDateToDDMMYYYY(checkDate);
       if (workingDays.includes(checkDateStr)) {
@@ -446,7 +460,9 @@ export default function AssignTask() {
 
   const isFirstTaskForUser = async (doerName) => {
     try {
-      const response = await fetch(`${GLOBAL_CONFIG.APPS_SCRIPT_URL}?sheet=Checklist&action=fetch`);
+      const response = await fetch(
+        `${GLOBAL_CONFIG.APPS_SCRIPT_URL}?sheet=Checklist&action=fetch`,
+      );
       if (!response.ok) {
         console.log("Checklist sheet not found - treating as first task");
         return true;
@@ -465,7 +481,9 @@ export default function AssignTask() {
         if (row.c && row.c[4] && row.c[4].v) {
           const existingDoer = row.c[4].v.toString().trim();
           if (existingDoer.toLowerCase() === doerName.toLowerCase().trim()) {
-            console.log(`User "${doerName}" found in Checklist - NOT first task`);
+            console.log(
+              `User "${doerName}" found in Checklist - NOT first task`,
+            );
             return false;
           }
         }
@@ -481,8 +499,15 @@ export default function AssignTask() {
 
   // Function to generate tasks preview
   const generateTasks = async () => {
-    if (!formData.department || !formData.description || !date || !formData.doer) {
-      alert("Please fill in all required fields (Department, Doer, Description, and Date)");
+    if (
+      !formData.department ||
+      !formData.description ||
+      !date ||
+      !formData.doer
+    ) {
+      alert(
+        "Please fill in all required fields (Department, Doer, Description, and Date)",
+      );
       return;
     }
 
@@ -497,7 +522,7 @@ export default function AssignTask() {
       doer: formData.doer,
       frequency: formData.frequency,
       enableReminders: formData.enableReminders,
-      requireAttachment: formData.requireAttachment
+      requireAttachment: formData.requireAttachment,
     };
 
     // Set generated tasks (currently just one as a preview)
@@ -505,14 +530,16 @@ export default function AssignTask() {
     setAccordionOpen(true);
   };
 
-  // UPDATED: handleSubmit function with first-time user check logic
+  // UPDATED: handleSubmit function - ALWAYS submit to both Unique AND Checklist for non-one-time tasks
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
 
     try {
       if (generatedTasks.length === 0) {
-        alert("Please generate tasks first by clicking Preview Generated Tasks");
+        alert(
+          "Please generate tasks first by clicking Preview Generated Tasks",
+        );
         setIsSubmitting(false);
         return;
       }
@@ -524,26 +551,21 @@ export default function AssignTask() {
         return;
       }
 
-      // Determine the sheet(s) based on frequency and first-time user check
+      // Determine the sheet(s) based on frequency
       let submitToSheets = [];
 
       if (formData.frequency === "one-time") {
         submitToSheets = ["DELEGATION"];
         console.log("One-time task - submitting to DELEGATION only");
       } else {
-        const isFirstTask = await isFirstTaskForUser(formData.doer);
-        if (isFirstTask) {
-          submitToSheets = ["Unique", "Checklist"];
-          console.log("First task for user - submitting to both Unique and Checklist");
-        } else {
-          submitToSheets = ["Unique"];
-          console.log("Existing user - submitting to Unique only");
-        }
+        // FIXED: Always submit to both Unique and Checklist for recurring tasks
+        submitToSheets = ["Unique", "Checklist"];
+        console.log("Recurring task - submitting to BOTH Unique and Checklist");
       }
 
       console.log(`Selected department: ${formData.department}`);
       console.log(`Doer: ${formData.doer}`);
-      console.log(`Target sheets: ${submitToSheets.join(', ')}`);
+      console.log(`Target sheets: ${submitToSheets.join(", ")}`);
 
       // Submit to each target sheet
       for (const sheetName of submitToSheets) {
@@ -563,21 +585,23 @@ export default function AssignTask() {
             startDate: task.dueDate,
             freq: task.frequency,
             enableReminders: task.enableReminders ? "Yes" : "No",
-            requireAttachment: task.requireAttachment ? "Yes" : "No"
+            requireAttachment: task.requireAttachment ? "Yes" : "No",
           };
 
           // Only add taskId for sheets other than Checklist
           if (needsTaskId) {
             return {
               ...baseData,
-              taskId: (nextTaskId + index).toString()
+              taskId: (nextTaskId + index).toString(),
             };
           }
 
           return baseData;
         });
 
-        console.log(`Submitting ${tasksData.length} tasks to ${sheetName} sheet`);
+        console.log(
+          `Submitting ${tasksData.length} tasks to ${sheetName} sheet`,
+        );
 
         // Submit all tasks in one batch to Google Sheets
         const formPayload = new FormData();
@@ -586,18 +610,17 @@ export default function AssignTask() {
         formPayload.append("batchInsert", "true");
         formPayload.append("rowData", JSON.stringify(tasksData));
 
-        await fetch(
-          GLOBAL_CONFIG.APPS_SCRIPT_URL,
-          {
-            method: "POST",
-            body: formPayload,
-            mode: "no-cors",
-          }
-        );
+        await fetch(GLOBAL_CONFIG.APPS_SCRIPT_URL, {
+          method: "POST",
+          body: formPayload,
+          mode: "no-cors",
+        });
       }
 
-      const sheetNames = submitToSheets.join(' and ');
-      alert(`Successfully submitted ${generatedTasks.length} task${generatedTasks.length !== 1 ? 's' : ''} to ${sheetNames} sheet${submitToSheets.length > 1 ? 's' : ''}!`);
+      const sheetNames = submitToSheets.join(" and ");
+      alert(
+        `Successfully submitted ${generatedTasks.length} task${generatedTasks.length !== 1 ? "s" : ""} to ${sheetNames} sheet${submitToSheets.length > 1 ? "s" : ""}!`,
+      );
 
       // Reset form
       setFormData({
@@ -607,7 +630,7 @@ export default function AssignTask() {
         description: "",
         frequency: "one-time",
         enableReminders: true,
-        requireAttachment: false
+        requireAttachment: false,
       });
       setSelectedDate(null);
       setTime("09:00");
@@ -634,7 +657,7 @@ export default function AssignTask() {
     if (formData.frequency === "one-time") {
       return "DELEGATION sheet";
     } else {
-      return "Checklist sheet";
+      return "Unique and Checklist sheets";
     }
   };
 
@@ -832,7 +855,8 @@ export default function AssignTask() {
               {date && time && (
                 <div className="p-3 bg-purple-50 border border-purple-200 rounded-md">
                   <p className="text-sm text-purple-700">
-                    <strong>Selected Date & Time:</strong> {getFormattedDateTime()}
+                    <strong>Selected Date & Time:</strong>{" "}
+                    {getFormattedDateTime()}
                   </p>
                   <p className="text-xs text-purple-600 mt-1">
                     Will be stored as: {formatDateTimeForStorage(date, time)}
@@ -924,15 +948,16 @@ export default function AssignTask() {
                         className="w-full flex justify-between items-center p-4 text-purple-700 hover:bg-purple-50 focus:outline-none"
                       >
                         <span className="font-medium">
-                          {generatedTasks.length} Task{generatedTasks.length !== 1 ? 's' : ''} Generated
+                          {generatedTasks.length} Task
+                          {generatedTasks.length !== 1 ? "s" : ""} Generated
                           {formData.frequency === "one-time"
                             ? " (Will be stored in DELEGATION sheet)"
-                            : ` (Recurring task - Will be stored in Task List sheet)`
-                          }
+                            : ` (Recurring task - Will be stored in Unique and Checklist sheets)`}
                         </span>
                         <svg
-                          className={`w-5 h-5 transition-transform ${accordionOpen ? "rotate-180" : ""
-                            }`}
+                          className={`w-5 h-5 transition-transform ${
+                            accordionOpen ? "rotate-180" : ""
+                          }`}
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
@@ -958,7 +983,8 @@ export default function AssignTask() {
                                   {task.description}
                                 </div>
                                 <div className="text-xs text-purple-600">
-                                  Due: {formatDateForDisplay(task.dueDate)} | Department: {task.department}
+                                  Due: {formatDateForDisplay(task.dueDate)} |
+                                  Department: {task.department}
                                 </div>
                                 <div className="flex space-x-2 mt-1">
                                   {task.enableReminders && (
@@ -999,7 +1025,7 @@ export default function AssignTask() {
                     givenBy: "",
                     doer: "",
                     description: "",
-                    frequency: "One Time (No Recurrence)",
+                    frequency: "one-time",
                     enableReminders: true,
                     requireAttachment: false,
                   });
